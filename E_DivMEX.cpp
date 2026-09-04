@@ -217,124 +217,163 @@ template<class T>
 T sqr(T x){
     return x*x;
 }
-const int M=400010;
 
-vi sp(M),q;
-void init(){
-    F(i,2,M) if(!sp[i]){
-        for(int j=i;j<M;j+=i)
-            if(!sp[j]) sp[j]=i;
+const int N=400005;
 
-        for(ll x=i;x<M;x*=i) q.pb(x);
-    }
-    sor(q);
-}
-struct Seg{
+vi sp(N),p;
+
+struct ST{
     int n;
-    vi t,lz;
+    vi t;
 
-    Seg(int n):n(n),t(4*n),lz(4*n,-1){
-        b(1,1,n);
-    }
-    void b(int p,int l,int r){
-        t[p]=r;
-        if(l==r) return;
+    void in(int m){
+        n=1;
 
-        int m=(l+r)/2;
-        b(p*2,l,m);
-        b(p*2+1,m+1,r);
-    }
-    void ps(int p){
-        if(lz[p]<0) return;
+        while(n<=m)
+            n<<=1;
 
-        t[p*2]=t[p*2+1]=lz[p];
-        lz[p*2]=lz[p*2+1]=lz[p];
-        lz[p]=-1;
-    }
-    void u(int p,int l,int r,int ql,int qr,int x){
-        if(r<ql||qr<l) return;
+        t.assign(n<<1,N);
 
-        if(ql<=l&&r<=qr){
-            t[p]=lz[p]=x;
-            return;
+        EACH(x,p){
+            if(x>m) break;
+            t[n+x]=0;
         }
 
-        ps(p);
-
-        int m=(l+r)/2;
-
-        u(p*2,l,m,ql,qr,x);
-        u(p*2+1,m+1,r,ql,qr,x);
-
-        t[p]=max(t[p*2],t[p*2+1]);
+        R(i,n-1,0)
+            t[i]=min(t[i<<1],t[i<<1|1]);
     }
-    int g(int p,int l,int r,int x){
-        if(t[p]<=x) return n+1;
-        if(l==r) return l;
 
-        ps(p);
+    void up(int x,int v){
+        x+=n;
+        t[x]=v;
 
-        int m=(l+r)/2;
-
-        if(t[p*2]>x)
-            return g(p*2,l,m,x);
-
-        return g(p*2+1,m+1,r,x);
+        while(x>>=1)
+            t[x]=min(t[x<<1],t[x<<1|1]);
     }
-    bool u(int r,int x){
-        if(r<1) return 0;
 
-        int p=g(1,1,n,x);
+    int qr(int l,int r){
+        if(l>r) return N;
 
-        if(p>r) return 0;
+        int z=N;
 
-        u(1,1,n,p,r,x);
+        l+=n;
+        r+=n;
 
-        return 1;
+        while(l<=r){
+            if(l&1)
+                z=min(z,t[l++]);
+
+            if(!(r&1))
+                z=min(z,t[r--]);
+
+            l>>=1;
+            r>>=1;
+        }
+
+        return z;
     }
 };
+
+void pre(){
+    iota(all(sp),0);
+
+    F(i,2,N){
+        if(1LL*i*i>=N)
+            break;
+
+        if(sp[i]!=i)
+            continue;
+
+        for(int j=i*i;j<N;j+=i)
+            if(sp[j]==j)
+                sp[j]=i;
+    }
+
+    p.pb(1);
+
+    F(i,2,N){
+        if(sp[i]!=i)
+            continue;
+
+        ll x=i;
+
+        while(x<N){
+            p.pb(x);
+
+            if(x>(N-1)/i)
+                break;
+
+            x*=i;
+        }
+    }
+
+    sor(p);
+}
 // ---------------- SOLVE ----------------
 void solve(){
     int n;
     cin>>n;
 
-    vi a(n+1);
-    vector<vi> p(n+1);
-    F(i,1,n+1){
-        cin>>a[i];
-        int x=a[i];
-        while(x>1){
-            int d=sp[x],y=1;
+    vi a(n);
 
-            while(x%d==0){
-                x/=d;
-                y*=d;
-                p[y].pb(i);
+    EACH(x,a)
+        cin>>x;
+
+    int b=*ub(all(p),n);
+
+    ST t;
+    t.in(b);
+
+    vi l(b+1),o(b+1);
+
+    FOR(i,n){
+        int y=a[i];
+        vi d;
+
+        while(y>1){
+            int q=sp[y],z=1;
+
+            while(y%q==0){
+                y/=q;
+                z*=q;
+                d.pb(z);
             }
         }
+
+        EACH(x,d){
+            if(!o[x]&&t.qr(1,x-1)>l[x])
+                o[x]=1;
+        }
+
+        t.up(1,i+1);
+
+        EACH(x,d){
+            l[x]=i+1;
+            t.up(x,i+1);
+        }
     }
-    Seg st(n);
-    vi ans;
-    EACH(x,q){
-        if(x>n||p[x].empty()){
-            if(st.u(n,0)) ans.pb(x);
+
+    vi r;
+
+    EACH(x,p){
+        if(x==1)
+            continue;
+
+        if(x>b)
             break;
-        }
 
-        vi &v=p[x];
-        bool ok=st.u(v[0]-1,0);
-        FOR(i,sz(v)){
-            int r=n;
-            if(i+1<sz(v))
-                r=v[i+1]-1;
+        if(!o[x]&&t.qr(1,x-1)>l[x])
+            o[x]=1;
 
-            ok|=st.u(r,v[i]);
-        }
-        if(ok) ans.pb(x);
+        if(o[x])
+            r.pb(x);
     }
-    cout<<sz(ans)<<endl;
-    EACH(x,ans)
-        cout<<x<<" ";
+
+    cout<<sz(r)<<endl;
+
+    EACH(x,r)
+        cout<<x<<' ';
+
     cout<<endl;
 }
 signed main(){
@@ -348,7 +387,7 @@ signed main(){
          //freopen("Error2.txt","w",stderr);
     #endif
 
-    init();
+    pre();
 
     int t=1;
     cin>>t;
@@ -357,4 +396,3 @@ signed main(){
         solve();
     }
 }
-
